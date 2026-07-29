@@ -36,4 +36,10 @@ const invalid = validateTechnicalNote(`${realExcerpt} ${validationExcerpt.replac
 console.assert(invalid.some(error => error['Tipo da Verificação'] === 'Convalidação'), 'Detecta convalidação ausente');
 console.assert(invalid.some(error => error['Tipo da Verificação'] === 'Município'), 'Detecta município divergente');
 console.assert(invalid.some(error => error['Tipo da Verificação'] === 'Valores'), 'Detecta divergência de valores');
+const saoPaulo = `${realExcerpt} ${validationExcerpt}`.replaceAll('VICENTINÓPOLIS', 'SÃO PAULO');
+console.assert(
+  !validateTechnicalNote(saoPaulo.replace('Município de SÃO PAULO/GO.', 'Município de São Paulo/GO.'), parseTechnicalNote(saoPaulo))
+    .some(error => error['Tipo da Verificação'] === 'Município'),
+  'Reconhece São Paulo como igual a SÃO PAULO'
+);
 console.log('Todos os testes do parser passaram.');

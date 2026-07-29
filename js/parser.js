@@ -33,7 +33,13 @@ function extractLocation(text) {
   return { city: match?.[1] ? titleCaseBrazilian(match[1]) : '', uf: match?.[2]?.toUpperCase() || '' };
 }
 
-const normalizeComparable = value => normalizeText(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+// Chave de comparação independente de caixa, acentos, espaços e pontuação.
+// Ex.: “São Paulo”, “SÃO PAULO” e “Sao-Paulo” resultam em “SAOPAULO”.
+const normalizeComparable = (value = '') => normalizeText(value)
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]/gi, '')
+  .toLocaleUpperCase('pt-BR');
 const toCents = value => {
   const [integer = '0', decimals = '0'] = cleanMoney(value).split(',');
   return Number(integer || 0) * 100 + Number(decimals.padEnd(2, '0').slice(0, 2) || 0);
