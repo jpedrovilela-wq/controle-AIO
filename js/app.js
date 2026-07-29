@@ -1,15 +1,15 @@
 import { extractPdfText } from './pdf.js';
-import { COLUMNS, parseTechnicalNote } from './parser.js';
+import { COLUMNS, parseTechnicalNote, validateTechnicalNote } from './parser.js';
 import { exportRowsToExcel } from './excel.js';
 import { formatBytes } from './utils.js';
 
-const state = { files: [], rows: [] };
+const state = { files: [], rows: [], errors: [] };
 const $ = id => document.getElementById(id);
 const elements = Object.fromEntries(['fileInput','selectButton','dropZone','fileList','fileItemTemplate','processButton','exportButton','clearButton','progressBar','progressText','loadedCount','processedCount','errorCount','fileSummary','tableHead','tableBody','previewSummary','themeToggle'].map(id => [id, $(id)]));
 
 function updateCounters() {
-  const processed = state.files.filter(item => item.status === 'success').length;
-  const errors = state.files.filter(item => item.status === 'error').length;
+  const processed = state.files.filter(item => item.status === 'success' || item.status === 'warning').length;
+  const errors = state.errors.length + state.files.filter(item => item.status === 'error').length;
   elements.loadedCount.textContent = state.files.length; elements.processedCount.textContent = processed; elements.errorCount.textContent = errors;
   elements.fileSummary.textContent = state.files.length ? `${state.files.length} arquivo(s) na ordem de inserção.` : 'Nenhum PDF selecionado.';
   elements.processButton.disabled = !state.files.length || state.files.some(item => item.status === 'processing');
@@ -22,7 +22,7 @@ function renderFiles() {
     const node = elements.fileItemTemplate.content.firstElementChild.cloneNode(true);
     node.querySelector('.file-name').textContent = item.file.name; node.querySelector('.file-size').textContent = formatBytes(item.file.size);
     const status = node.querySelector('.file-status');
-    const labels = { pending: 'Aguardando', processing: 'Processando…', success: '✔ Processado', error: '❌ Erro' };
+    const labels = { pending: 'Aguardando', processing: 'Processando…', success: '✔ Processado', warning: '⚠ Processado com alertas', error: '❌ Erro' };
     status.textContent = labels[item.status]; status.className = `file-status status-${item.status}`;
     if (item.error) status.title = item.error;
     elements.fileList.append(node);
@@ -43,23 +43,29 @@ function addFiles(fileList) {
   renderFiles();
 }
 async function processFiles() {
-  state.rows = []; setProgress(0, state.files.length);
+  state.rows = []; state.errors = []; setProgress(0, state.files.length);
   for (const [index, item] of state.files.entries()) {
     item.status = 'processing'; item.error = ''; renderFiles();
-    try { const text = await extractPdfText(item.file); state.rows.push(parseTechnicalNote(text)); item.status = 'success'; }
+    try {
+      const text = await extractPdfText(item.file);
+      const row = parseTechnicalNote(text);
+      item.validationErrors = validateTechnicalNote(text, row);
+      state.rows.push(row); state.errors.push(...item.validationErrors);
+      item.status = item.validationErrors.length ? 'warning' : 'success';
+    }
     catch (error) { item.status = 'error'; item.error = error.message || 'Não foi possível ler o PDF.'; }
     renderFiles(); renderTable(); setProgress(index + 1, state.files.length);
     await new Promise(resolve => setTimeout(resolve, 0));
   }
   // Mantém o botão de exportação disponível para reemitir o arquivo, mas baixa a primeira versão ao concluir.
-  if (state.rows.length) exportRowsToExcel(state.rows);
+  if (state.rows.length) exportRowsToExcel(state.rows, state.errors);
 }
-function clearAll() { state.files = []; state.rows = []; elements.fileInput.value = ''; setProgress(0, 0); renderFiles(); renderTable(); }
+function clearAll() { state.files = []; state.rows = []; state.errors = []; elements.fileInput.value = ''; setProgress(0, 0); renderFiles(); renderTable(); }
 
 elements.selectButton.addEventListener('click', () => elements.fileInput.click()); elements.fileInput.addEventListener('change', event => addFiles(event.target.files));
 ['dragenter','dragover'].forEach(name => elements.dropZone.addEventListener(name, event => { event.preventDefault(); elements.dropZone.classList.add('dragover'); }));
 ['dragleave','drop'].forEach(name => elements.dropZone.addEventListener(name, event => { event.preventDefault(); elements.dropZone.classList.remove('dragover'); }));
 elements.dropZone.addEventListener('drop', event => addFiles(event.dataTransfer.files)); elements.processButton.addEventListener('click', processFiles); elements.clearButton.addEventListener('click', clearAll);
-elements.exportButton.addEventListener('click', () => exportRowsToExcel(state.rows));
+elements.exportButton.addEventListener('click', () => exportRowsToExcel(state.rows, state.errors));
 elements.themeToggle.addEventListener('click', () => { const dark = document.documentElement.dataset.theme !== 'dark'; document.documentElement.dataset.theme = dark ? 'dark' : 'light'; localStorage.setItem('aio-theme', dark ? 'dark' : 'light'); });
 if (localStorage.getItem('aio-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; renderFiles(); renderTable();

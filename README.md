@@ -10,4 +10,6 @@ Aplicação estática, sem backend, para extrair dados de até 50 Notas Técnica
 
 As regras de extração estão todas em `js/parser.js`, no vetor `EXTRACTION_RULES`. Adicione uma regra ali e sua coluna correspondente em `COLUMNS` para ampliar os campos futuramente.
 
+O mesmo módulo também contém `validateTechnicalNote`, com as validações de convalidação, município e valores. Quando uma inconsistência é encontrada, a exportação inclui a aba `ERROS NA NOTA TÉCNICA`.
+
 > Os PDFs nunca saem do navegador. PDF.js e SheetJS são carregados de CDNs públicos, portanto é necessária conexão no primeiro carregamento da página.
