@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Extração local de dados de Notas Técnicas FNHIS Sub-50." />
+    <title>Planilha de Controle de AIO - FNHIS Sub-50</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">MINISTÉRIO DAS CIDADES • FNHIS SUB-50</p>
+          <h1>Planilha de Controle de AIO - FNHIS Sub-50</h1>
+          <p>Carregue até 50 Notas Técnicas em PDF para gerar uma planilha consolidada.</p>
+        </div>
+        <button id="themeToggle" class="icon-button" type="button" aria-label="Alternar tema" title="Alternar tema">◐</button>
+      </header>
+
+      <section class="stats" aria-label="Resumo do processamento">
+        <article><span id="loadedCount">0</span><small>PDFs carregados</small></article>
+        <article><span id="processedCount">0</span><small>PDFs processados</small></article>
+        <article><span id="errorCount">0</span><small>Erros encontrados</small></article>
+      </section>
+
+      <section id="dropZone" class="drop-zone" aria-label="Área para envio de PDFs">
+        <input id="fileInput" type="file" accept="application/pdf,.pdf" multiple hidden />
+        <div class="upload-icon">↑</div>
+        <h2>Arrastar arquivos para cá</h2>
+        <p>ou</p>
+        <button id="selectButton" class="button button-primary" type="button">Selecionar PDFs</button>
+        <small>PDFs somente • máximo de 50 arquivos • processamento local</small>
+      </section>
+
+      <section class="panel files-panel">
+        <div class="section-heading">
+          <div><h2>Arquivos carregados</h2><p id="fileSummary">Nenhum PDF selecionado.</p></div>
+          <button id="clearButton" class="button button-ghost" type="button" disabled>Limpar</button>
+        </div>
+        <div id="fileList" class="file-list" aria-live="polite"></div>
+      </section>
+
+      <section class="progress-section" aria-label="Progresso geral">
+        <div class="progress-label"><span>Progresso geral</span><strong id="progressText">0%</strong></div>
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      </section>
+
+      <div class="actions">
+        <button id="processButton" class="button button-primary" type="button" disabled>Processar PDFs</button>
+        <button id="exportButton" class="button button-success" type="button" disabled>Exportar Excel</button>
+      </div>
+
+      <section class="panel preview-panel">
+        <div class="section-heading"><div><h2>Pré-visualização</h2><p id="previewSummary">Os dados extraídos aparecerão aqui.</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"><tr><td class="empty-state">Nenhum resultado para exibir.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <template id="fileItemTemplate">
+      <article class="file-item">
+        <div class="file-icon">PDF</div>
+        <div class="file-details"><strong class="file-name"></strong><small class="file-size"></small></div>
+        <span class="file-status status-pending">Aguardando</span>
+      </article>
+    </template>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
