@@ -49,11 +49,24 @@ const extractSection = (text, section, nextSection) => {
   return text.match(new RegExp(`(?:^|\\s)${marker}\\s*\\.\\s*(.*?)(?=\\s*${next}\\s*\\.|$)`, 'is'))?.[1] || '';
 };
 const extractAmount = (text, patterns) => cleanMoney(firstMatch(text, patterns));
-const extractQuadroValues = quadro => ({
-  transfer: extractAmount(quadro, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
-  committed: extractAmount(quadro, [/Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
-  needed: extractAmount(quadro, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i])
-});
+const extractQuadro = text => text.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
+const extractLastMoney = text => {
+  const values = [...text.matchAll(/(?:R?\$?\s*)?([\d.]+,\d{1,2})/g)].map(match => cleanMoney(match[1]));
+  return values.at(-1) || '';
+};
+const extractQuadroValues = quadro => {
+  const needed = extractAmount(quadro, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i])
+    // No PDF impresso, a última linha pode ser: “Necessidade de” / “R$ ...” / “Empenho”.
+    // Nesse layout, a última quantia do Quadro 1 é a Necessidade de Empenho.
+    || extractLastMoney(quadro);
+  return {
+    transfer: extractAmount(quadro, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
+    committed: extractAmount(quadro, [/Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
+    needed
+  };
+};
+const extractNeeded = text => extractQuadroValues(extractQuadro(text)).needed
+  || extractAmount(text, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
 
 const extractQuadroLocation = rawQuadro => {
   const labelled = rawQuadro.match(/Munic[ií]pio\s+Beneficiado[ \t]+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú .'-]*?)\s*\/\s*([A-Z]{2})\b/i);
@@ -82,7 +95,7 @@ export const EXTRACTION_RULES = [
   { key: 'uf', label: COLUMNS[5], extract: text => extractLocation(text).uf },
   { key: 'transfer', label: COLUMNS[6], extract: text => cleanMoney(firstMatch(text, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i])) },
   { key: 'committed', label: COLUMNS[7], extract: text => cleanMoney(firstMatch(text, [/Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i])) },
-  { key: 'needed', label: COLUMNS[8], extract: text => cleanMoney(firstMatch(text, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i])) }
+  { key: 'needed', label: COLUMNS[8], extract: text => extractNeeded(text) }
 ];
 
 export function parseTechnicalNote(rawText) {
@@ -104,7 +117,7 @@ export function validateTechnicalNote(rawText, parsed = parseTechnicalNote(rawTe
   const item12 = extractSection(text, '1.2', '2');
   const item31 = extractSection(text, '3.1', '3.2');
   const item51 = extractSection(text, '5.1', '5.2');
-  const rawQuadro = rawText.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
+  const rawQuadro = extractQuadro(rawText);
   const quadro = normalizeText(rawQuadro);
   const item31Location = extractLocation(item31);
   const quadroLocation = extractQuadroLocation(rawQuadro);

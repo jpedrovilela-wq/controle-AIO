@@ -89,4 +89,17 @@ for (const [city, uf] of [['São José da Laje', 'AL'], ['Coqueiro Seco', 'AL']]
     `Reconhece ${city}/${uf} no item 3.1 e no Quadro 1 impresso`
   );
 }
+
+const printedCommitment = `
+Quadro 1 - Dados gerais.
+Valor de Repasse R$ 2.800.000,00
+Valor Empenhado R$ 839.398,40
+Necessidade de
+R$ 1.960.601,60
+Empenho
+Fonte: DHR.`;
+console.assert(
+  parseTechnicalNote(printedCommitment)[COLUMNS[8]] === '1960601,60',
+  'Extrai Necessidade de Empenho pela última quantia do Quadro 1 impresso'
+);
 console.log('Todos os testes do parser passaram.');
