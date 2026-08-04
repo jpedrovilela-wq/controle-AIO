@@ -1,5 +1,13 @@
 import { COLUMNS } from './parser.js';
 
+const MONEY_COLUMNS = new Set(['Valor de Repasse', 'Valor Empenhado', 'Necessidade de Empenho']);
+
+const moneyToNumber = value => {
+  const normalized = String(value ?? '').trim().replace(/\./g, '').replace(',', '.');
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+};
+
 export function exportRowsToExcel(rows, errors = []) {
   if (!globalThis.XLSX) throw new Error('SheetJS não foi carregado. Verifique sua conexão e tente novamente.');
   const worksheet = XLSX.utils.json_to_sheet(rows, { header: COLUMNS });
@@ -9,6 +17,21 @@ export function exportRowsToExcel(rows, errors = []) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: col })];
     cell.s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1455A3' } }, alignment: { wrapText: true } };
   }
+  // A extração mantém valores como texto normalizado (ex.: 2800000,00). No
+  // arquivo final eles são números reais, com formato monetário, para permitir
+  // soma, filtros numéricos e fórmulas no Excel.
+  COLUMNS.forEach((column, col) => {
+    if (!MONEY_COLUMNS.has(column)) return;
+    for (let row = 1; row <= range.e.r; row++) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: col })];
+      if (!cell) continue;
+      const value = moneyToNumber(cell.v);
+      if (value === null) continue;
+      cell.t = 'n';
+      cell.v = value;
+      cell.z = 'R$ #,##0.00';
+    }
+  });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Extraídas');
   if (errors.length) {

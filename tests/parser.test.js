@@ -102,4 +102,9 @@ console.assert(
   parseTechnicalNote(printedCommitment)[COLUMNS[8]] === '1960601,60',
   'Extrai Necessidade de Empenho pela última quantia do Quadro 1 impresso'
 );
+console.assert(
+  parseTechnicalNote(printedCommitment)[COLUMNS[6]] === '2800000,00' &&
+  parseTechnicalNote(printedCommitment)[COLUMNS[7]] === '839398,40',
+  'Mantém os três valores financeiros normalizados antes da exportação numérica'
+);
 console.log('Todos os testes do parser passaram.');
