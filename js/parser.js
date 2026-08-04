@@ -24,12 +24,11 @@ const firstMatch = (text, patterns) => {
 };
 
 function extractLocation(text) {
-  const location = firstMatch(text, [
-    /Munic[ií]pio\s+(?:de\s+)?([A-ZÀ-Ú][A-ZÀ-Ú\s.'-]+?)\s*\/\s*([A-Z]{2})\b/i,
-    /(?:no|do)\s+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.'-]+?)\s*\/\s*([A-Z]{2})\b/i
-  ]);
-  const match = text.match(/Munic[ií]pio\s+(?:de\s+)?([A-ZÀ-Ú][A-ZÀ-Ú\s.'-]+?)\s*\/\s*([A-Z]{2})\b/i)
-    || text.match(/(?:no|do)\s+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.'-]+?)\s*\/\s*([A-Z]{2})\b/i);
+  // O espaço da cidade não inclui quebras de linha. Isso impede que a tabela
+  // impressa (rótulo e valor em linhas separadas) forme um município duplicado.
+  const city = "[A-ZÀ-Ú][A-ZÀ-Ú .'-]*?";
+  const match = text.match(new RegExp(`Munic[ií]pio\\s+(?:de\\s+)?(${city})\\s*\\/\\s*([A-Z]{2})\\b`, 'i'))
+    || text.match(new RegExp(`(?:no|do)\\s+Munic[ií]pio\\s+de\\s+(${city})\\s*\\/\\s*([A-Z]{2})\\b`, 'i'));
   return { city: match?.[1] ? titleCaseBrazilian(match[1]) : '', uf: match?.[2]?.toUpperCase() || '' };
 }
 
@@ -55,6 +54,22 @@ const extractQuadroValues = quadro => ({
   committed: extractAmount(quadro, [/Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
   needed: extractAmount(quadro, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i])
 });
+
+const extractQuadroLocation = rawQuadro => {
+  const labelled = rawQuadro.match(/Munic[ií]pio\s+Beneficiado[ \t]+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú .'-]*?)\s*\/\s*([A-Z]{2})\b/i);
+  if (labelled?.[1]) return { city: titleCaseBrazilian(labelled[1]), uf: labelled[2].toUpperCase() };
+
+  const lines = rawQuadro.split(/\r?\n/).map(normalizeText).filter(Boolean);
+  const municipalityRow = lines.findIndex(line => /Munic[ií]pio(?:\s+Beneficiado)?\b/i.test(line));
+  const candidates = municipalityRow >= 0
+    ? lines.slice(Math.max(0, municipalityRow - 1), municipalityRow + 5)
+    : lines;
+  for (const line of candidates) {
+    const location = extractLocation(line);
+    if (location.city) return location;
+  }
+  return extractLocation(rawQuadro);
+};
 
 // Todas as colunas e suas regras ficam centralizadas aqui: acrescente um item para criar novo campo.
 export const EXTRACTION_RULES = [
@@ -89,10 +104,10 @@ export function validateTechnicalNote(rawText, parsed = parseTechnicalNote(rawTe
   const item12 = extractSection(text, '1.2', '2');
   const item31 = extractSection(text, '3.1', '3.2');
   const item51 = extractSection(text, '5.1', '5.2');
-  const quadro = text.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
-  const quadroLocation = quadro.match(/Munic[ií]pio\s+Beneficiado\s+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú\s.'-]+?)\s*\/\s*([A-Z]{2})\b/i);
+  const rawQuadro = rawText.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
+  const quadro = normalizeText(rawQuadro);
   const item31Location = extractLocation(item31);
-  const quadroCity = quadroLocation?.[1] ? titleCaseBrazilian(quadroLocation[1]) : extractLocation(quadro).city;
+  const quadroCity = extractQuadroLocation(rawQuadro).city;
   const values = extractQuadroValues(quadro);
   const item51Transfer = extractAmount(item51, [/(?:valor\s+total\s+de\s+)?repasse\s+de\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
   const item51Needed = extractAmount(item51, [/necessidade\s+de\s+empenho\s+de\s*R?\$?\s*([\d.]+,\d{1,2})/i]);

@@ -1,5 +1,9 @@
 import { COLUMNS, parseTechnicalNote, validateTechnicalNote } from '../js/parser.js';
 
+console.assert = (condition, message) => {
+  if (!condition) throw new Error(message || 'Teste falhou.');
+};
+
 const realExcerpt = `Nota Técnica nº 1539/2026/CGPES-DHR-MCID/DHR-MCID/SNH-MCID-MCID
 PROCESSO Nº 80000.008723/2026-33
 Instrumento nº 974037 (Proposta nº 033326/2024) - construção de unidades habitacionais no Município de VICENTINÓPOLIS/GO.
@@ -41,5 +45,31 @@ console.assert(
   !validateTechnicalNote(saoPaulo.replace('Município de SÃO PAULO/GO.', 'Município de São Paulo/GO.'), parseTechnicalNote(saoPaulo))
     .some(error => error['Tipo da Verificação'] === 'Município'),
   'Reconhece São Paulo como igual a SÃO PAULO'
+);
+
+const printedGuajeru = `
+3.1. Construção de unidades habitacionais no Município de Guajeru/BA.
+3.2. Dados complementares.
+Quadro 1 - Dados gerais do Instrumento.
+Programa Minha Casa, Minha Vida
+Ação 232000TI
+Modalidade Termo de Compromisso
+Compromissário CNPJ 13.284.658/0001-14
+MUNICIPIO DE GUAJERU
+Município
+Município de Guajeru/BA
+Beneficiado
+Valor de Repasse R$ 2.800.000,00
+Valor Empenhado R$ 839.398,40
+Necessidade de
+R$ 1.960.601,60
+Empenho
+Fonte: DHR.
+5.1. Repasse de R$ 2.800.000,00 e necessidade de empenho de R$ 1.960.601,60.
+5.2. Continuação.`;
+console.assert(
+  !validateTechnicalNote(printedGuajeru, parseTechnicalNote(printedGuajeru))
+    .some(error => error['Tipo da Verificação'] === 'Município'),
+  'Reconhece Guajeru no item 3.1 e no Quadro 1 impresso'
 );
 console.log('Todos os testes do parser passaram.');
