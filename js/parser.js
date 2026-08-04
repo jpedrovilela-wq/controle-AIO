@@ -46,7 +46,12 @@ const toCents = value => {
 const extractSection = (text, section, nextSection) => {
   const marker = section.replace('.', '\\s*\\.\\s*');
   const next = nextSection.replace('.', '\\s*\\.\\s*');
-  return text.match(new RegExp(`(?:^|\\s)${marker}\\s*\\.\\s*(.*?)(?=\\s*${next}\\s*\\.|$)`, 'is'))?.[1] || '';
+  // O PDF impresso pode omitir o ponto final de subitens ("1.2" em vez de
+  // "1.2."). Para títulos principais, como "2.", o ponto continua exigido
+  // para não confundir referências e datas no corpo do texto.
+  const markerEnd = section.includes('.') ? '\\s*\\.?' : '\\s*\\.';
+  const nextEnd = nextSection.includes('.') ? '\\s*\\.?' : '\\s*\\.';
+  return text.match(new RegExp(`(?:^|\\s)${marker}${markerEnd}\\s*(.*?)(?=\\s*${next}${nextEnd}|$)`, 'is'))?.[1] || '';
 };
 const extractAmount = (text, patterns) => cleanMoney(firstMatch(text, patterns));
 const extractQuadro = text => text.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
@@ -61,15 +66,26 @@ const extractQuadroValues = quadro => {
     || extractLastMoney(quadro);
   return {
     transfer: extractAmount(quadro, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
-    committed: extractAmount(quadro, [/Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
+    // Em algumas páginas impressas a célula é lida verticalmente:
+    // "Valor" / "R$ 280.000,00" / "Empenhado".
+    committed: extractAmount(quadro, [
+      /Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i,
+      /Valor\s*R?\$?\s*([\d.]+,\d{1,2})\s*Empenhado/i
+    ]),
     needed
   };
 };
 const extractNeeded = text => extractQuadroValues(extractQuadro(text)).needed
   || extractAmount(text, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
+const extractCommitted = text => extractAmount(text, [
+  /Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i,
+  /Valor\s*R?\$?\s*([\d.]+,\d{1,2})\s*Empenhado/i
+]);
 
 const extractQuadroLocation = rawQuadro => {
-  const labelled = rawQuadro.match(/Munic[ií]pio\s+Beneficiado[ \t]+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú .'-]*?)\s*\/\s*([A-Z]{2})\b/i);
+  // O PDF pode separar "Beneficiado" em "Bene fi ciado". Aceita essa
+  // fragmentação sem alterar o restante do conteúdo do Quadro 1.
+  const labelled = rawQuadro.match(/Munic[ií]pio\s+Bene\s*fi\s*ciado[ \t]+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú .'-]*?)\s*\/\s*([A-Z]{2})\b/i);
   if (labelled?.[1]) return { city: titleCaseBrazilian(labelled[1]), uf: labelled[2].toUpperCase() };
 
   const lines = rawQuadro.split(/\r?\n/).map(normalizeText).filter(Boolean);
@@ -94,7 +110,7 @@ export const EXTRACTION_RULES = [
   { key: 'city', label: COLUMNS[4], extract: text => extractLocation(text).city },
   { key: 'uf', label: COLUMNS[5], extract: text => extractLocation(text).uf },
   { key: 'transfer', label: COLUMNS[6], extract: text => cleanMoney(firstMatch(text, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i])) },
-  { key: 'committed', label: COLUMNS[7], extract: text => cleanMoney(firstMatch(text, [/Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i])) },
+  { key: 'committed', label: COLUMNS[7], extract: extractCommitted },
   { key: 'needed', label: COLUMNS[8], extract: text => extractNeeded(text) }
 ];
 

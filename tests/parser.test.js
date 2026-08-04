@@ -107,4 +107,41 @@ console.assert(
   parseTechnicalNote(printedCommitment)[COLUMNS[7]] === '839398,40',
   'Mantém os três valores financeiros normalizados antes da exportação numérica'
 );
+
+const printedVerticalCommitment = `
+Quadro 1 - Dados gerais.
+Valor de Repasse R$ 2.800.000,00
+Valor
+R$ 280.000,00
+Empenhado
+Necessidade de
+R$ 2.520.000,00
+Empenho
+Fonte: DHR.`;
+console.assert(
+  parseTechnicalNote(printedVerticalCommitment)[COLUMNS[7]] === '280000,00',
+  'Extrai Valor Empenhado quando a coluna impressa é lida verticalmente'
+);
+
+const fragmentedMunicipality = `
+3.1. Obra no Município de Goianinha/RN.
+3.2. Dados complementares.
+Quadro 1 - Dados gerais.
+Município Bene fi ciado Município de Goianinha/RN
+Fonte: DHR.`;
+console.assert(
+  !validateTechnicalNote(fragmentedMunicipality, parseTechnicalNote(fragmentedMunicipality))
+    .some(error => error['Tipo da Verificação'] === 'Município'),
+  'Reconhece Município Beneficiado quando Beneficiado é fragmentado'
+);
+
+const sectionWithoutFinalDot = `
+1.1. Trata-se de convalidar a autorização.
+1.2 A convalidação visa cumprir o disposto no Ofício.
+2. REFERÊNCIAS`;
+console.assert(
+  !validateTechnicalNote(sectionWithoutFinalDot, parseTechnicalNote(sectionWithoutFinalDot))
+    .some(error => error['Tipo da Verificação'] === 'Convalidação'),
+  'Reconhece o item 1.2 mesmo sem ponto final'
+);
 console.log('Todos os testes do parser passaram.');
