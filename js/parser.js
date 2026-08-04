@@ -107,7 +107,7 @@ export function validateTechnicalNote(rawText, parsed = parseTechnicalNote(rawTe
   const rawQuadro = rawText.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
   const quadro = normalizeText(rawQuadro);
   const item31Location = extractLocation(item31);
-  const quadroCity = extractQuadroLocation(rawQuadro).city;
+  const quadroLocation = extractQuadroLocation(rawQuadro);
   const values = extractQuadroValues(quadro);
   const item51Transfer = extractAmount(item51, [/(?:valor\s+total\s+de\s+)?repasse\s+de\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
   const item51Needed = extractAmount(item51, [/necessidade\s+de\s+empenho\s+de\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
@@ -118,7 +118,11 @@ export function validateTechnicalNote(rawText, parsed = parseTechnicalNote(rawTe
     'Tipo da Verificação': verification, 'Descrição do Erro': description
   });
   if (/convalidar|convalida[çc][ãa]o/i.test(item11) && !/convalidar|convalida[çc][ãa]o/i.test(item12)) report('Convalidação', 'O item 1.1 menciona convalidação, mas o item 1.2 não contém “convalidar” nem “convalidação”.');
-  if (item31Location.city && quadroCity && normalizeComparable(item31Location.city) !== normalizeComparable(quadroCity)) report('Município', 'Município do item 3.1 difere do Quadro 1.');
+  if (
+    item31Location.city && quadroLocation.city &&
+    (normalizeComparable(item31Location.city) !== normalizeComparable(quadroLocation.city) ||
+      item31Location.uf !== quadroLocation.uf)
+  ) report('Município', 'Município/UF do item 3.1 difere do Quadro 1.');
   if (values.transfer && values.committed && values.needed && toCents(values.transfer) - toCents(values.committed) !== toCents(values.needed)) report('Valores', 'Valor de Repasse − Valor Empenhado ≠ Necessidade de Empenho no Quadro 1.');
   if (values.transfer && item51Transfer && toCents(values.transfer) !== toCents(item51Transfer)) report('Item 5.1', 'Valor de Repasse do item 5.1 difere do Quadro 1.');
   if (values.needed && item51Needed && toCents(values.needed) !== toCents(item51Needed)) report('Item 5.1', 'Necessidade de Empenho do item 5.1 difere do Quadro 1.');

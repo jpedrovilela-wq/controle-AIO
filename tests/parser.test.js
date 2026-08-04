@@ -72,4 +72,21 @@ console.assert(
     .some(error => error['Tipo da Verificação'] === 'Município'),
   'Reconhece Guajeru no item 3.1 e no Quadro 1 impresso'
 );
+
+for (const [city, uf] of [['São José da Laje', 'AL'], ['Coqueiro Seco', 'AL']]) {
+  const printedCity = `
+  3.1. Obra no Município de ${city}/${uf}.
+  3.2. Dados complementares.
+  Quadro 1 - Dados gerais.
+  MUNICIPIO DE ${city.toLocaleUpperCase('pt-BR')}
+  Município
+  Município de ${city}/${uf}
+  Beneficiado
+  Fonte: DHR.`;
+  console.assert(
+    !validateTechnicalNote(printedCity, parseTechnicalNote(printedCity))
+      .some(error => error['Tipo da Verificação'] === 'Município'),
+    `Reconhece ${city}/${uf} no item 3.1 e no Quadro 1 impresso`
+  );
+}
 console.log('Todos os testes do parser passaram.');
