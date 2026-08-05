@@ -27,8 +27,12 @@ function extractLocation(text) {
   // O espaço da cidade não inclui quebras de linha. Isso impede que a tabela
   // impressa (rótulo e valor em linhas separadas) forme um município duplicado.
   const city = "[A-ZÀ-Ú][A-ZÀ-Ú .'-]*?";
-  const match = text.match(new RegExp(`Munic[ií]pio\\s+(?:de\\s+)?(${city})\\s*\\/\\s*([A-Z]{2})\\b`, 'i'))
-    || text.match(new RegExp(`(?:no|do)\\s+Munic[ií]pio\\s+de\\s+(${city})\\s*\\/\\s*([A-Z]{2})\\b`, 'i'));
+  const uf = "(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)";
+  const municipality = "(?:no\\s+|do\\s+)?Munic[ií]pio\\s+de\\s+";
+  const match = text.match(new RegExp(`${municipality}(${city})\\s*(?:\\/|-)\\s*(${uf})\\b`, 'i'))
+    // Algumas impressões não usam separador: “Município de Ibirajuba PE”.
+    // A lista fechada de UFs impede que palavras comuns de duas letras sejam tratadas como estado.
+    || text.match(new RegExp(`${municipality}(${city})\\s+(${uf})\\b`, 'i'));
   return { city: match?.[1] ? titleCaseBrazilian(match[1]) : '', uf: match?.[2]?.toUpperCase() || '' };
 }
 

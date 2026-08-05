@@ -169,4 +169,17 @@ console.assert(
     .some(error => error['Tipo da Verificação'] === 'Município'),
   'Aceita município do item 3.1 presente em qualquer campo do Quadro 1'
 );
+for (const [city, uf, separator] of [
+  ['Bacabeira', 'MA', ' - '],
+  ['Ibirajuba', 'PE', ' ']
+]) {
+  const specialSeparator = `
+  Nota Técnica nº 1400/2026/CGPES-DHR-MCID PROCESSO Nº 80000.000001/2026-00
+  3.1. Obra no Município de ${city}${separator}${uf}.
+  3.2. Dados complementares.
+  Quadro 1 - Dados gerais. MUNICÍPIO DE ${city.toUpperCase()} Município de ${city}${separator}${uf} Fonte: DHR.`;
+  const parsedSpecialSeparator = parseTechnicalNote(specialSeparator);
+  console.assert(parsedSpecialSeparator[COLUMNS[4]] === city && parsedSpecialSeparator[COLUMNS[5]] === uf,
+    `Extrai ${city}/${uf} com separador ${JSON.stringify(separator)}`);
+}
 console.log('Todos os testes do parser passaram.');
