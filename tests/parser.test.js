@@ -157,4 +157,16 @@ console.assert(
     .some(error => error['Tipo da Verificação'] === 'Município'),
   'Reconhece município do Beneficiado fragmentado em linha separada'
 );
+const municipalityInAnyQuadroField = `
+3.1. Obra no Município de São João da Serra/PI.
+3.2. Dados complementares.
+Quadro 1 - Dados gerais.
+Compromissário MUNICIPIO DE SAO JOAO DA SERRA
+Informação complementar sem a estrutura usual de beneficiado.
+Fonte: DHR.`;
+console.assert(
+  !validateTechnicalNote(municipalityInAnyQuadroField, parseTechnicalNote(municipalityInAnyQuadroField))
+    .some(error => error['Tipo da Verificação'] === 'Município'),
+  'Aceita município do item 3.1 presente em qualquer campo do Quadro 1'
+);
 console.log('Todos os testes do parser passaram.');
