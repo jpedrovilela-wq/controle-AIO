@@ -83,8 +83,11 @@ const extractCommitted = text => extractAmount(text, [
 ]);
 
 const extractQuadroLocation = rawQuadro => {
-  // O PDF pode separar "Beneficiado" em "Bene fi ciado". Aceita essa
-  // fragmentação sem alterar o restante do conteúdo do Quadro 1.
+  // Nas impressões Web, "Beneficiado" pode ser separado em "Bene fi ciado"
+  // e o município pode ficar na linha seguinte. Essa é a fonte mais precisa.
+  const beneficiary = rawQuadro.match(/Bene\s*fi\s*ciado\s+(?:Munic[ií]pio\s+de\s+)?([A-ZÀ-Ú][A-ZÀ-Ú .'-]*?)\s*(?:\/|-)\s*([A-Z]{2})\b/i);
+  if (beneficiary?.[1]) return { city: titleCaseBrazilian(beneficiary[1]), uf: beneficiary[2].toUpperCase() };
+
   const labelled = rawQuadro.match(/Munic[ií]pio\s+Bene\s*fi\s*ciado[ \t]+Munic[ií]pio\s+de\s+([A-ZÀ-Ú][A-ZÀ-Ú .'-]*?)\s*\/\s*([A-Z]{2})\b/i);
   if (labelled?.[1]) return { city: titleCaseBrazilian(labelled[1]), uf: labelled[2].toUpperCase() };
 

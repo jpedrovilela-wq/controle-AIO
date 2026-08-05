@@ -144,4 +144,17 @@ console.assert(
     .some(error => error['Tipo da Verificação'] === 'Convalidação'),
   'Reconhece o item 1.2 mesmo sem ponto final'
 );
+const beneficiaryOnSeparateLine = `
+3.1. Obra no Município de Esperantina/PI.
+3.2. Dados complementares.
+Quadro 1 - Dados gerais.
+MUNICIPIO DE ESPERANTINA
+Município Município de
+Bene fi ciado ESPERANTINA/PI
+Fonte: DHR.`;
+console.assert(
+  !validateTechnicalNote(beneficiaryOnSeparateLine, parseTechnicalNote(beneficiaryOnSeparateLine))
+    .some(error => error['Tipo da Verificação'] === 'Município'),
+  'Reconhece município do Beneficiado fragmentado em linha separada'
+);
 console.log('Todos os testes do parser passaram.');
