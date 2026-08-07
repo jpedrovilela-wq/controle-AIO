@@ -60,30 +60,35 @@ const extractSection = (text, section, nextSection) => {
 const extractAmount = (text, patterns) => cleanMoney(firstMatch(text, patterns));
 const extractQuadro = text => text.match(/Quadro\s*1\s*-?[\s\S]*?(?=\s*3\s*\.\s*3\s*\.|\s*Fonte\s*:|$)/i)?.[0] || '';
 const extractLastMoney = text => {
-  const values = [...text.matchAll(/(?:R?\$?\s*)?([\d.]+,\d{1,2})/g)].map(match => cleanMoney(match[1]));
+  // Prioriza valores com “R$”; sem isso, aceita somente números com vírgula.
+  // Evita que anos, páginas e outros inteiros do Quadro sejam lidos como dinheiro.
+  const values = [...text.matchAll(/(?:R\$\s*([\d.]+(?:,\d{1,2})?)|([\d.]+,\d{1,2}))/g)]
+    .map(match => cleanMoney(match[1] || match[2]));
   return values.at(-1) || '';
 };
 const extractQuadroValues = quadro => {
-  const needed = extractAmount(quadro, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i])
-    // No PDF impresso, a última linha pode ser: “Necessidade de” / “R$ ...” / “Empenho”.
-    // Nesse layout, a última quantia do Quadro 1 é a Necessidade de Empenho.
+  const needed = extractAmount(quadro, [
+    /Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i,
+    // Em algumas impressões: “Necessidade de” / “R$ 2.843.750” / “Empenho”.
+    /Necessidade\s+de\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)\s*Empenho/i
+  ])
     || extractLastMoney(quadro);
   return {
-    transfer: extractAmount(quadro, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i]),
+    transfer: extractAmount(quadro, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i]),
     // Em algumas páginas impressas a célula é lida verticalmente:
     // "Valor" / "R$ 280.000,00" / "Empenhado".
     committed: extractAmount(quadro, [
-      /Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i,
-      /Valor\s*R?\$?\s*([\d.]+,\d{1,2})\s*Empenhado/i
+      /Valor\s+Empenhado\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i,
+      /Valor\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)\s*Empenhado/i
     ]),
     needed
   };
 };
 const extractNeeded = text => extractQuadroValues(extractQuadro(text)).needed
-  || extractAmount(text, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
+  || extractAmount(text, [/Necessidade\s+de\s+Empenho\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i]);
 const extractCommitted = text => extractAmount(text, [
-  /Valor\s+Empenhado\s*R?\$?\s*([\d.]+,\d{1,2})/i,
-  /Valor\s*R?\$?\s*([\d.]+,\d{1,2})\s*Empenhado/i
+  /Valor\s+Empenhado\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i,
+  /Valor\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)\s*Empenhado/i
 ]);
 
 const extractQuadroLocation = rawQuadro => {
@@ -116,7 +121,7 @@ export const EXTRACTION_RULES = [
   { key: 'recipient', label: COLUMNS[3], extract: text => /MUNIC[IÍ]PIO\s+DE/i.test(text) ? 'Município' : (/ESTADO\s+DE/i.test(text) ? 'Estado' : '') },
   { key: 'city', label: COLUMNS[4], extract: text => extractLocation(text).city },
   { key: 'uf', label: COLUMNS[5], extract: text => extractLocation(text).uf },
-  { key: 'transfer', label: COLUMNS[6], extract: text => cleanMoney(firstMatch(text, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+,\d{1,2})/i])) },
+  { key: 'transfer', label: COLUMNS[6], extract: text => cleanMoney(firstMatch(text, [/Valor\s+de\s+Repasse\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i])) },
   { key: 'committed', label: COLUMNS[7], extract: extractCommitted },
   { key: 'needed', label: COLUMNS[8], extract: text => extractNeeded(text) }
 ];
@@ -148,8 +153,8 @@ export function validateTechnicalNote(rawText, parsed = parseTechnicalNote(rawTe
   const item31City = normalizeComparable(item31Location.city);
   const quadroComparable = normalizeComparable(rawQuadro);
   const values = extractQuadroValues(quadro);
-  const item51Transfer = extractAmount(item51, [/(?:valor\s+total\s+de\s+)?repasse\s+de\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
-  const item51Needed = extractAmount(item51, [/necessidade\s+de\s+empenho\s+de\s*R?\$?\s*([\d.]+,\d{1,2})/i]);
+  const item51Transfer = extractAmount(item51, [/(?:valor\s+total\s+de\s+)?repasse\s+de\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i]);
+  const item51Needed = extractAmount(item51, [/necessidade\s+de\s+empenho\s+de\s*R?\$?\s*([\d.]+(?:,\d{1,2})?)/i]);
   const errors = [];
   const report = (verification, description) => errors.push({
     'Nº da Nota Técnica': firstMatch(parsed[COLUMNS[2]] || '', [/Nota\s+T[eé]cnica\s+nº\s*(\d+\/\d{4})/i]) || firstMatch(text, [/Nota\s+T[eé]cnica\s+n?[ºo°.]?\s*(\d+\/\d{4})/i]),
